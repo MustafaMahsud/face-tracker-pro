@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FaceTracker Pro (Full Face)</title>
+  <title>FaceTracker Pro (Full Face Rectangle)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -56,12 +56,6 @@
     let camera = null;
     let running = false;
 
-    function drawRect(x, y, w, h) {
-      ctx.strokeStyle = '#22d3ee';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(x, y, w, h);
-    }
-
     const faceMesh = new FaceMesh({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
     });
@@ -89,7 +83,10 @@
         const minY = Math.min(...ys);
         const maxY = Math.max(...ys);
 
-        drawRect(minX, minY, maxX - minX, maxY - minY);
+        // Draw rectangle covering the full face
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
       }
     });
 
