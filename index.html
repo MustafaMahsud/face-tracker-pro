@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FaceTracker Pro (Stable)</title>
+  <title>FaceTracker Pro (Full Face)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -57,11 +57,10 @@
     let running = false;
 
     function drawRect(x, y, w, h) {
-  ctx.strokeStyle = '#22d3ee';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(x, y, w, h);
-}
-
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x, y, w, h);
+    }
 
     const faceMesh = new FaceMesh({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
@@ -75,19 +74,24 @@
     });
 
     faceMesh.onResults((results) => {
+      if (!running) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
       if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-  const points = results.multiFaceLandmarks[0];
-  const xs = points.map(p => p.x * canvas.width);
-  const ys = points.map(p => p.y * canvas.height);
+        const points = results.multiFaceLandmarks[0];
+        const xs = points.map(p => p.x * canvas.width);
+        const ys = points.map(p => p.y * canvas.height);
 
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
 
-  drawRect(minX, minY, maxX - minX, maxY - minY);
-}
-
+        drawRect(minX, minY, maxX - minX, maxY - minY);
+      }
+    });
 
     async function startCamera() {
       if (running) return;
@@ -113,4 +117,3 @@
   </script>
 </body>
 </html>
-
