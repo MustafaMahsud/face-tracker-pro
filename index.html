@@ -4,31 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FaceTracker Pro</title>
-
-  <!-- Tailwind CDN for quick styling -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
     body {
       @apply bg-slate-900 text-white flex flex-col items-center justify-center min-h-screen;
     }
-    canvas, video {
+    #tracker-container {
+      position: relative;
+      width: 90vw;
+      max-width: 480px;
+      aspect-ratio: 3/4;
+      overflow: hidden;
+      border-radius: 1rem;
+      border: 2px solid rgba(255,255,255,0.1);
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
+    video, canvas {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      border-radius: 1rem;
-    }
-    #tracker-container {
-      position: relative;
-      width: 90vw;
-      max-width: 500px;
-      aspect-ratio: 3/4;
-      overflow: hidden;
-      border: 2px solid rgba(255,255,255,0.1);
-      box-shadow: 0 0 20px rgba(0,0,0,0.4);
       border-radius: 1rem;
     }
   </style>
@@ -48,9 +46,7 @@
     <button id="stopBtn" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl">Stop</button>
   </div>
 
-  <p class="text-slate-500 text-sm">
-    Works fully on-device. Use Safari (iOS) or Chrome (Android). Requires HTTPS.
-  </p>
+  <p class="text-slate-500 text-sm">Works fully on-device. Use Safari (iOS) or Chrome (Android). Requires HTTPS.</p>
 
   <script type="module">
     import {
@@ -63,7 +59,8 @@
     const ctx = canvas.getContext("2d");
     let detector, stream, running = false;
 
-    async function init() {
+    async function initDetector() {
+      console.log("Loading FaceDetector...");
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
       );
@@ -74,22 +71,23 @@
         },
         runningMode: "VIDEO",
       });
-      console.log("FaceDetector loaded");
+      console.log("✅ FaceDetector loaded");
     }
 
     async function startCamera() {
       try {
+        console.log("Requesting camera...");
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
-        video.onloadedmetadata = () => {
-          video.play();
-          resizeCanvas();
-          running = true;
-          detectLoop();
-        };
+        video.style.display = "block";
+        console.log("✅ Camera ready");
+        await new Promise(resolve => video.onloadedmetadata = resolve);
+        resizeCanvas();
+        running = true;
+        detectLoop();
       } catch (err) {
-        alert("Camera access denied or unavailable.");
-        console.error(err);
+        console.error("Camera error:", err);
+        alert("Camera access denied or not available");
       }
     }
 
@@ -97,11 +95,13 @@
       running = false;
       if (stream) stream.getTracks().forEach(t => t.stop());
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      console.log("Camera stopped");
     }
 
     function resizeCanvas() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+      console.log("Canvas resized:", canvas.width, "x", canvas.height);
     }
 
     async function detectLoop() {
@@ -111,14 +111,13 @@
 
       if (result.detections.length > 0) {
         const box = result.detections[0].boundingBox;
-        const centerX = box.originX + box.width / 2;
-        const centerY = box.originY + box.height / 2;
-        const radius = Math.max(box.width, box.height) / 2.2;
-
+        const cx = box.originX + box.width / 2;
+        const cy = box.originY + box.height / 2;
+        const r = Math.max(box.width, box.height) / 2.2;
         ctx.beginPath();
         ctx.strokeStyle = "#22d3ee";
         ctx.lineWidth = 4;
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
         ctx.stroke();
       }
 
@@ -126,9 +125,10 @@
     }
 
     document.getElementById("startBtn").onclick = async () => {
-      if (!detector) await init();
-      startCamera();
+      if (!detector) await initDetector();
+      await startCamera();
     };
+
     document.getElementById("stopBtn").onclick = stopCamera;
   </script>
 </body>
