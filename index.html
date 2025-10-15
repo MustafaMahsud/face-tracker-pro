@@ -1,347 +1,62 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Pro Face Tracker — Circle Follow</title>
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<style>
-  :root{
-    --accent:#3ddc84;
-    --bg:#0b0f14;
-    --panel:#0f1720;
-    --muted:#9aa6b2;
-    --glass: rgba(255,255,255,0.03);
-    --radius:14px;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    color: #e6eef3;
-  }
-  html,body{height:100%;margin:0;background:linear-gradient(180deg,#04111b 0%, #071422 100%);}
-  .app {
-    position:relative;
-    width:100%;
-    height:100vh;
-    overflow:hidden;
-    display:grid;
-    grid-template-columns: 1fr 340px;
-    gap:16px;
-    align-items:stretch;
-    padding:18px;
-    box-sizing:border-box;
-  }
-
-  /* video canvas area */
-  .stage {
-    position:relative;
-    background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-    border-radius: 16px;
-    overflow:hidden;
-    box-shadow: 0 6px 28px rgba(2,8,23,0.6);
-  }
-  video, canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; -webkit-transform:scaleX(-1); transform:scaleX(-1); } /* mirror by default */
-
-  /* side panel */
-  .panel {
-    width:340px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border-radius: var(--radius);
-    padding:16px;
-    box-sizing:border-box;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    align-items:stretch;
-    justify-content:flex-start;
-    backdrop-filter: blur(6px);
-  }
-  .brand { display:flex; gap:10px; align-items:center; }
-  .logo {
-    width:44px; height:44px; border-radius:10px; background:linear-gradient(135deg,var(--accent),#1fb2ff);
-    display:flex; align-items:center; justify-content:center; font-weight:700; color:#042020;
-  }
-  h1 { font-size:16px; margin:0 0 4px 0; }
-  p.lead { margin:0; color:var(--muted); font-size:13px }
-
-  .row { display:flex; gap:8px; align-items:center; }
-  label { font-size:12px; color:var(--muted); }
-
-  .controls { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
-  .btn {
-    appearance:none; border:0; padding:10px 12px; border-radius:10px; font-weight:600; cursor:pointer;
-    background:linear-gradient(180deg,var(--accent), #2bb36a); color:#02120a; box-shadow: 0 6px 18px rgba(45,220,130,0.12);
-  }
-  .btn.ghost { background:transparent; color:var(--accent); border:1px solid rgba(125,255,180,0.06); box-shadow:none; }
-
-  select,input[type=range],input[type=color]{
-    width:100%; padding:8px 10px; border-radius:10px; background:var(--panel); border:1px solid rgba(255,255,255,0.03);
-    color:var(--muted);
-  }
-  .small { font-size:13px; color:var(--muted) }
-  .meta { display:flex; justify-content:space-between; gap:8px; font-size:13px; color:var(--muted) }
-
-  footer { margin-top:auto; font-size:12px; color:var(--muted); text-align:center; }
-
-  /* responsive for phone: single column */
-  @media (max-width:880px){
-    .app{ grid-template-columns: 1fr; padding:12px; }
-    .panel{ width:100%; order:2; }
-  }
-</style>
-</head>
-<body>
-<div class="app">
-  <div class="stage" id="stage">
-    <video id="video" autoplay muted playsinline></video>
-    <canvas id="overlay"></canvas>
-  </div>
-
-  <div class="panel" role="region" aria-label="Controls">
-    <div class="brand">
-      <div class="logo">FT</div>
-      <div>
-        <h1>FaceTracker Pro</h1>
-        <p class="lead">Realtime face circle — smooth, low-latency, runs on-device.</p>
-      </div>
-    </div>
-
-    <div class="controls">
-      <div class="row">
-        <button id="startBtn" class="btn">Start camera</button>
-        <button id="stopBtn" class="btn ghost">Stop</button>
-      </div>
-
-      <div class="row">
-        <label for="facing">Camera</label>
-        <select id="facing">
-          <option value="user">Front (selfie)</option>
-          <option value="environment">Back (rear)</option>
-        </select>
-      </div>
-
-      <div>
-        <label>Smoothing (0 = raw, 1 = super smooth)</label>
-        <input id="smoothing" type="range" min="0" max="0.98" step="0.02" value="0.6">
-      </div>
-
-      <div class="row">
-        <div style="flex:1">
-          <label>Circle color</label>
-          <input id="circleColor" type="color" value="#3ddc84">
-        </div>
-        <div style="width:110px">
-          <label>Circle size</label>
-          <input id="circleScale" type="range" min="0.4" max="1.8" step="0.05" value="1.0">
-        </div>
-      </div>
-
-      <div class="row">
-        <button id="snapshot" class="btn ghost">Snapshot</button>
-        <button id="mirror" class="btn ghost">Toggle Mirror</button>
-      </div>
-
-      <div class="meta">
-        <div>FPS: <span id="fps">0</span></div>
-        <div>Detections: <span id="det">0</span></div>
-      </div>
-    </div>
-
-    <footer>Works fully on-device. Use Safari (iOS) or Chrome (Android). Requires HTTPS on iPhone — use GitHub Pages or ngrok (instructions below).</footer>
-  </div>
-</div>
-
 <script type="module">
-  import { FaceDetection } from "https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/face_detection.js";
-  import { Camera } from "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.1/camera_utils.js";
+  import {
+    FaceDetector,
+    FilesetResolver
+  } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('overlay');
-  const ctx = canvas.getContext('2d', {alpha:true});
-  const startBtn = document.getElementById('startBtn');
-  const stopBtn = document.getElementById('stopBtn');
-  const facing = document.getElementById('facing');
-  const smoothingInput = document.getElementById('smoothing');
-  const circleColor = document.getElementById('circleColor');
-  const circleScale = document.getElementById('circleScale');
-  const snapshotBtn = document.getElementById('snapshot');
-  const mirrorBtn = document.getElementById('mirror');
-  const fpsEl = document.getElementById('fps');
-  const detEl = document.getElementById('det');
-  let mirrored = true;
+  let video = document.getElementById("video");
+  let canvas = document.getElementById("output");
+  let ctx = canvas.getContext("2d");
+  let detector;
 
-  // smoothing state (EMA)
-  const state = {
-    cx: null, cy: null, r: null,
-    alpha: parseFloat(smoothingInput.value)
-  };
+  async function init() {
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+    );
+    detector = await FaceDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/face_detector/face_detector/float16/1/face_detector.task",
+      },
+      runningMode: "VIDEO",
+    });
 
-  smoothingInput.addEventListener('input', ()=> state.alpha = parseFloat(smoothingInput.value));
-  mirrorBtn.addEventListener('click', ()=> {
-    mirrored = !mirrored;
-    if (mirrored) { video.style.transform = 'scaleX(-1)'; canvas.style.transform = 'scaleX(-1)'; }
-    else { video.style.transform = 'scaleX(1)'; canvas.style.transform = 'scaleX(1)'; }
-  });
-
-  // media pipe face detection
-  const detector = new FaceDetection({
-    locateFile: (p) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${p}`
-  });
-  detector.setOptions({
-    model: 'short', // fastest — change to 'full' for better accuracy if needed
-    minDetectionConfidence: 0.5
-  });
-
-  let lastTs = performance.now();
-  let frames = 0;
-  let lastFpsUpdate = performance.now();
-  let cameraController = null;
-
-  detector.onResults(onResults);
+    startCamera();
+  }
 
   async function startCamera() {
-    if (cameraController) return;
-    // set preferred constraints
-    const constraints = {
-      video: {
-        facingMode: facing.value,
-        width: { ideal: 960 },
-        height: { ideal: 720 }
-      },
-      audio: false
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      video.play();
+      detectFaces();
     };
-
-    // use Camera util to send frames to mediapipe
-    cameraController = new Camera(video, {
-      onFrame: async () => {
-        await detector.send({image: video});
-      },
-      width: 960,
-      height: 720,
-      facingMode: facing.value
-    });
-    await cameraController.start();
-    startBtn.disabled = true;
   }
 
-  function stopCamera() {
-    if (!cameraController) return;
-    cameraController.stop();
-    cameraController = null;
-    startBtn.disabled = false;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+  async function detectFaces() {
+    if (!detector) return requestAnimationFrame(detectFaces);
+
+    const result = await detector.detectForVideo(video, Date.now());
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (result.detections.length > 0) {
+      const box = result.detections[0].boundingBox;
+      ctx.strokeStyle = "lime";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(
+        box.originX + box.width / 2,
+        box.originY + box.height / 2,
+        Math.max(box.width, box.height) / 2,
+        0,
+        2 * Math.PI
+      );
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(detectFaces);
   }
 
-  startBtn.addEventListener('click', startCamera);
-  stopBtn.addEventListener('click', stopCamera);
-  facing.addEventListener('change', ()=> {
-    // restart camera to switch facing
-    stopCamera();
-    startCamera();
-  });
-
-  // draw results
-  function onResults(results) {
-    // resize canvas to video
-    if (video.videoWidth && video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // fps
-    frames++;
-    const now = performance.now();
-    if (now - lastFpsUpdate > 500) {
-      const fps = Math.round((frames * 1000) / (now - lastFpsUpdate));
-      fpsEl.textContent = fps;
-      frames = 0;
-      lastFpsUpdate = now;
-    }
-
-    const detections = results.detections || [];
-    detEl.textContent = detections.length;
-
-    if (detections.length === 0) return;
-
-    // choose the first detection (largest)
-    const face = detections[0];
-    // boundingBox has xCenter,yCenter,width,height normalized (0..1)
-    const bb = face.boundingBox;
-    const x = bb.xCenter * canvas.width;
-    const y = bb.yCenter * canvas.height;
-    // radius estimate: half of max(width,height)
-    const r = Math.max(bb.width * canvas.width, bb.height * canvas.height) * 0.5 * parseFloat(circleScale.value);
-
-    // smoothing (exponential moving average)
-    if (state.cx === null) {
-      state.cx = x; state.cy = y; state.r = r;
-    } else {
-      const a = 1 - state.alpha; // alpha slider gives smoothing; closer to 1 = smoother
-      state.cx = (a * state.cx) + ((1-a) * x);
-      state.cy = (a * state.cy) + ((1-a) * y);
-      state.r  = (a * state.r)  + ((1-a) * r);
-    }
-
-    // draw subtle shadow
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(state.cx + 6, state.cy + 6, state.r + 8, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.fill();
-    ctx.restore();
-
-    // draw main circle
-    ctx.beginPath();
-    ctx.arc(state.cx, state.cy, state.r, 0, Math.PI * 2);
-    ctx.lineWidth = Math.max(3, Math.round(state.r * 0.07));
-    ctx.strokeStyle = circleColor.value;
-    ctx.stroke();
-
-    // inner ring for style
-    ctx.beginPath();
-    ctx.arc(state.cx, state.cy, Math.max(2, state.r * 0.18), 0, Math.PI * 2);
-    ctx.fillStyle = hexToRgba(circleColor.value, 0.14);
-    ctx.fill();
-  }
-
-  // snapshot
-  snapshotBtn.addEventListener('click', () => {
-    // capture the current canvas overlay and video into a single image
-    const w = canvas.width, h = canvas.height;
-    const temp = document.createElement('canvas');
-    temp.width = w; temp.height = h;
-    const tctx = temp.getContext('2d');
-    // draw video frame (non-mirrored)
-    if (mirrored) {
-      // draw mirrored: flip horizontally
-      tctx.save(); tctx.scale(-1,1); tctx.drawImage(video, -w, 0, w, h); tctx.restore();
-    } else {
-      tctx.drawImage(video, 0,0,w,h);
-    }
-    // draw overlay
-    tctx.drawImage(canvas, 0,0,w,h);
-    temp.toBlob((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `face_snapshot_${Date.now()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }, 'image/png');
-  });
-
-  // small helper: hex color -> rgba
-  function hexToRgba(hex, alpha=1){
-    const h = hex.replace('#','');
-    const bigint = parseInt(h,16);
-    const r = (bigint >> 16) & 255;
-    const g = (bigint >> 8) & 255;
-    const b = bigint & 255;
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
-
-  // autoplay: optionally start on load if allowed
-  // window.addEventListener('load', startCamera); // uncomment to auto-start if you prefer
+  init();
 </script>
-</body>
-</html>
+
