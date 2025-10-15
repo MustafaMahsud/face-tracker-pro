@@ -56,13 +56,12 @@
     let camera = null;
     let running = false;
 
-    function drawCircle(centerX, centerY, radius) {
-      ctx.beginPath();
-      ctx.strokeStyle = '#22d3ee';
-      ctx.lineWidth = 4;
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.stroke();
-    }
+    function drawRect(x, y, w, h) {
+  ctx.strokeStyle = '#22d3ee';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x, y, w, h);
+}
+
 
     const faceMesh = new FaceMesh({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
@@ -76,24 +75,19 @@
     });
 
     faceMesh.onResults((results) => {
-      if (!running) return;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-        const points = results.multiFaceLandmarks[0];
-        const xs = points.map(p => p.x * canvas.width);
-        const ys = points.map(p => p.y * canvas.height);
-        const cx = xs.reduce((a, b) => a + b, 0) / xs.length;
-        const cy = ys.reduce((a, b) => a + b, 0) / ys.length;
-        const radius = Math.max(
-          (Math.max(...xs) - Math.min(...xs)),
-          (Math.max(...ys) - Math.min(...ys))
-        ) / 2.2;
-        drawCircle(cx, cy, radius);
-      }
-    });
+  const points = results.multiFaceLandmarks[0];
+  const xs = points.map(p => p.x * canvas.width);
+  const ys = points.map(p => p.y * canvas.height);
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  drawRect(minX, minY, maxX - minX, maxY - minY);
+}
+
 
     async function startCamera() {
       if (running) return;
@@ -119,3 +113,4 @@
   </script>
 </body>
 </html>
+
